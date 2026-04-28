@@ -12,12 +12,10 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// Health check
 app.get('/', (req, res) => {
   res.json({ message: 'API Perpustakaan - Responsi Modul 4' });
 });
 
-// ENDPOINT UTAMA
 app.get('/api/loans/top-borrowers', async (req, res) => {
   try {
     const query = `
@@ -32,7 +30,7 @@ app.get('/api/loans/top-borrowers', async (req, res) => {
         (
           SELECT b2.title
           FROM loans l2
-          JOIN books b2 ON 12.book_id= b2.id
+          JOIN books b2 ON l2.book_id = b2.id
           WHERE l2.member_id = m.id
           GROUP BY b2.title
           ORDER BY COUNT(*) DESC
