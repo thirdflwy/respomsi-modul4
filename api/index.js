@@ -21,12 +21,11 @@ app.get('/api/loans/top-borrowers', async (req, res) => {
     const query = `
       SELECT 
         m.id AS member_id,
-        m.name,
+        m.name AS full_name,
+        'STUDENT' AS member_type,
         m.email,
-        m.phone,
-        m.address,
-        m.created_at AS member_since,
         COUNT(l.id) AS total_pinjaman,
+        MAX(l.loan_date) AS last_loan_date,
         (
           SELECT b2.title
           FROM loans l2
@@ -35,35 +34,46 @@ app.get('/api/loans/top-borrowers', async (req, res) => {
           GROUP BY b2.title
           ORDER BY COUNT(*) DESC
           LIMIT 1
-        ) AS buku_favorit,
-        MAX(l.loan_date) AS pinjaman_terakhir
+        ) AS buku_favorit_title,
+        (
+          SELECT COUNT(*)
+          FROM loans l3
+          JOIN books b3 ON 13.book_id = b3.id
+          WHERE l3.member_id = m.id
+          AND b3.title = (
+            SELECT b4.title
+            FROM loans l4
+            JOIN books b4 ON l4.book_id = b4.id
+            WHERE l4.member_id = m.id
+            GROUP BY b4.title
+            ORDER BY COUNT(*) DESC
+            LIMIT 1
+            )
+        ) AS buku_favorit_count,
       FROM members m
       JOIN loans l ON m.id = l.member_id
-      GROUP BY m.id, m.name, m.email, m.phone, m.address, m.created_at
+      GROUP BY m.id, m.name, m.email
       ORDER BY total_pinjaman DESC
       LIMIT 3;
     `;
 
     const result = await pool.query(query);
 
-    const topBorrowers = result.rows.map((row, index) => ({
-      rank: index + 1,
-      member: {
-        id: row.member_id,
-        name: row.name,
+    const topBorrowers = result.rows.map((row) => ({
+        member_id: row.member_id,
+        full_name: row.full_name,
         email: row.email,
-        phone: row.phone,
-        address: row.address,
-        member_since: row.member_since
-      },
-      total_pinjaman: parseInt(row.total_pinjaman),
-      buku_favorit: row.buku_favorit,
-      pinjaman_terakhir: row.pinjaman_terakhir
+        member_type: row.member_type,
+        total_pinjaman: parseInt(row.total_pinjaman),
+        last_loan_date: row.last_loan_date,
+        buku_favorit: {
+            tite: row.buku_favorit_title,
+            times_borrowed: parseInt(row.buku_favorit_count)
+        }
     }));
 
     res.status(200).json({
-      success: true,
-      message: 'Top 3 Peminjam berhasil diambil',
+      message: 'Top 3 peminjam buku berhasil diambil',
       data: topBorrowers
     });
 
